@@ -40,15 +40,6 @@ struct ContentView: View {
     }
 }
 
-// Placeholder views - implement these next
-struct ChecklistView: View {
-    var body: some View {
-        Text("Checklist")
-            .background(Color.neuBackground)
-    }
-}
-
-
 struct SettingsView: View {
     var body: some View {
         Text("Settings")
