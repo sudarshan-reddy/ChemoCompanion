@@ -1,41 +1,57 @@
-// ContentView.swift
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        TabView {
-            Text("Home")
-                .tabItem {
-                    Image(systemName: "house")
-                    Text("Home")
-                }
-
-            ScheduleView()
-                .tabItem {
-                    Image(systemName: "calendar")
-                    Text("Schedule")
-                }
-
-            Text("Checklist")
-                .tabItem {
-                    Image(systemName: "checklist")
-                    Text("Checklist")
-                }
-
-            Text("Symptoms")
-                .tabItem {
-                    Image(systemName: "heart.text.square")
-                    Text("Symptoms")
-                }
-
-            Text("Settings")
-                .tabItem {
-                    Image(systemName: "gear")
-                    Text("Settings")
-                }
+        NavigationView {
+            TabView {
+                HomeView()
+                    .tabItem {
+                        Image(systemName: "house")
+                        Text("Home")
+                    }
+                
+                ScheduleView()
+                    .tabItem {
+                        Image(systemName: "calendar")
+                        Text("Schedule")
+                    }
+                
+                ChecklistView()
+                    .tabItem {
+                        Image(systemName: "checklist")
+                        Text("Checklist")
+                    }
+                
+                SymptomTrackerView()
+                    .tabItem {
+                        Image(systemName: "waveform.path.ecg")
+                        Text("Symptoms")
+                    }
+                
+                SettingsView()
+                    .tabItem {
+                        Image(systemName: "gearshape")
+                        Text("Settings")
+                    }
+            }
+            .tint(Color.neuSecondary)
         }
-        .tint(Color("Primary"))
-        .background(Color("Background"))
+        .navigationViewStyle(.stack)
     }
 }
 
+// Placeholder views - implement these next
+struct ChecklistView: View {
+    var body: some View {
+        Text("Checklist")
+            .background(Color.neuBackground)
+    }
+}
+
+
+struct SettingsView: View {
+    var body: some View {
+        Text("Settings")
+            .background(Color.neuBackground)
+    }
+}

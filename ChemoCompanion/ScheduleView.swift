@@ -1,213 +1,272 @@
 import SwiftUI
-import Foundation
+import CoreData
 
 struct ScheduleView: View {
-    @State private var selectedDate = Date()
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(
+        entity: ChemoSession.entity(),
+        sortDescriptors: [NSSortDescriptor(keyPath: \ChemoSession.date, ascending: true)]
+    ) private var appointments: FetchedResults<ChemoSession>
+    
+    @State private var selectedMonth = Date()
     @State private var showingAddAppointment = false
-    @State private var appointments: [Appointment] = []
-
+    
+    private let calendar = Calendar.current
+    
+    // Filter for next two upcoming appointments only
+    private var nextTwoAppointments: [ChemoSession] {
+        let today = calendar.startOfDay(for: Date())
+        let upcoming = appointments.filter { appointment in
+            guard let appointmentDate = appointment.date else { return false }
+            return calendar.startOfDay(for: appointmentDate) >= today
+        }
+        return Array(upcoming.prefix(2))
+    }
+    
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("Appointments")
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Chemo Schedule")
+                    .font(.largeTitle)
+                    .fontWeight(.medium)
+                Spacer()
+                Image(systemName: "calendar.badge.clock")
                     .font(.title)
-                    .padding(.top)
-
-                // Upcoming appointments list
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(getUpcomingAppointments()) { appointment in
-                        HStack {
-                            Text(appointment.date, format: .dateTime.month().day().year())
-                            Text("-")
-                            Text(appointment.location)
+                    .foregroundColor(.neuSecondary)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 20)
+            
+            // Calendar section
+            VStack(spacing: 16) {
+                // Month navigation
+                HStack {
+                    Text(monthYearString(from: selectedMonth))
+                        .font(.title2)
+                        .fontWeight(.medium)
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 20) {
+                        Button(action: { changeMonth(by: -1) }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(.neuSecondary)
                         }
-                        .padding(.horizontal)
-                        .foregroundColor(.secondary)
+                        Button(action: { changeMonth(by: 1) }) {
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.neuSecondary)
+                        }
                     }
                 }
-
-                // Calendar
-                CalendarView(selectedDate: $selectedDate)
-                    .padding()
-                    .background(Color("Background"))
-                    .cornerRadius(15)
-
-                // Selected date appointments
-                if let appointment = getAppointment(for: selectedDate) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Appointments")
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        HStack {
-                            Text(appointment.date, format: .dateTime.hour().minute())
-                            if let notes = appointment.notes {
-                                Text(notes)
-                                    .foregroundColor(.secondary)
+                
+                // Calendar grid
+                VStack(spacing: 12) {
+                    // Weekday headers
+                    HStack {
+                        ForEach(calendar.shortWeekdaySymbols, id: \.self) { day in
+                            Text(day.prefix(1))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    
+                    // Days grid
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
+                        ForEach(daysInMonth(), id: \.self) { date in
+                            if let date = date {
+                                Text("\(calendar.component(.day, from: date))")
+                                    .font(.body)
+                                    .frame(maxWidth: .infinity, minHeight: 35)
+                                    .foregroundColor(getDateColor(for: date))
+                                    .background(
+                                        Circle()
+                                            .fill(hasAppointment(on: date) ? Color.neuPrimary.opacity(0.2) : Color.clear)
+                                            .frame(width: 35, height: 35)
+                                    )
+                            } else {
+                                Text("")
+                                    .frame(maxWidth: .infinity, minHeight: 35)
                             }
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color("Background"))
-                        .cornerRadius(10)
-                        .padding(.horizontal)
                     }
                 }
-
-                Spacer()
-
-                // Add button
-                Button(action: { showingAddAppointment = true }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundColor(Color("Primary"))
-                }
-                .padding(.bottom)
             }
-            .sheet(isPresented: $showingAddAppointment) {
-                AddAppointmentSheet(selectedDate: selectedDate) { date, location, notes in
-                    appointments.append(Appointment(date: date, location: location, notes: notes))
-                }
-            }
-        }
-    }
-
-    private func getUpcomingAppointments() -> [Appointment] {
-        appointments
-            .filter { $0.date >= Date() }
-            .sorted { $0.date < $1.date }
-            .prefix(3)
-            .map { $0 }
-    }
-
-    private func getAppointment(for date: Date) -> Appointment? {
-        appointments.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
-    }
-}
-
-struct CalendarView: View {
-    @Binding var selectedDate: Date
-    private let calendar = Calendar.current
-    private let columns = Array(repeating: GridItem(.flexible()), count: 7)
-    private let weekDays = ["S", "M", "T", "W", "T", "F", "S"]
-
-    var body: some View {
-        VStack(spacing: 15) {
-            // Month navigation
-            HStack {
-                Button(action: { moveMonth(by: -1) }) {
-                    Image(systemName: "chevron.left")
-                }
-                Spacer()
-                Text(selectedDate, format: .dateTime.month().year())
-                    .font(.headline)
-                Spacer()
-                Button(action: { moveMonth(by: 1) }) {
-                    Image(systemName: "chevron.right")
-                }
-            }
-
-            // Week days
-            LazyVGrid(columns: columns) {
-                ForEach(weekDays, id: \.self) { day in
-                    Text(day)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            // Days
-            LazyVGrid(columns: columns) {
-                ForEach(getDaysInMonth(), id: \.self) { date in
-                    Text("\(calendar.component(.day, from: date))")
-                        .frame(height: 35)
-                        .foregroundColor(calendar.isDate(date, equalTo: selectedDate, toGranularity: .month) ? .primary : .secondary)
-                        .background(calendar.isDate(date, inSameDayAs: selectedDate) ? Color("Primary").opacity(0.2) : Color.clear)
-                        .clipShape(Circle())
-                        .onTapGesture {
-                            selectedDate = date
+            .padding(.horizontal)
+            
+            Spacer()
+            
+            // Upcoming appointments section
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Upcoming Appointments")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .padding(.horizontal)
+                
+                if !nextTwoAppointments.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(nextTwoAppointments, id: \.id) { appointment in
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(Color.neuSecondary)
+                                    .frame(width: 6, height: 6)
+                                
+                                Text(appointment.date?.formatted(date: .abbreviated, time: .omitted) ?? "")
+                                    .fontWeight(.medium)
+                                
+                                Text("-")
+                                    .foregroundColor(.secondary)
+                                
+                                Text(appointment.location ?? "")
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    deleteAppointment(appointment)
+                                }) {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.red.opacity(0.8))
+                                        .font(.footnote)
+                                }
+                            }
                         }
+                    }
+                    .padding(.horizontal)
+                } else {
+                    Text("No upcoming appointments")
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
                 }
             }
-        }
-    }
-
-    private func moveMonth(by value: Int) {
-        if let newDate = calendar.date(byAdding: .month, value: value, to: selectedDate) {
-            selectedDate = newDate
-        }
-    }
-
-    private func getDaysInMonth() -> [Date] {
-        guard let monthInterval = calendar.dateInterval(of: .month, for: selectedDate),
-              let monthFirstWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start),
-              let monthLastWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.end - 1) else {
-            return []
-        }
-
-        let dateInterval = DateInterval(start: monthFirstWeek.start, end: monthLastWeek.end)
-        var dates: [Date] = []
-        calendar.enumerateDates(
-            startingAfter: dateInterval.start,
-            matching: DateComponents(hour: 0, minute: 0, second: 0),
-            matchingPolicy: .nextTime
-        ) { date, _, stop in
-            guard let date = date else { return }
-            if date > dateInterval.end {
-                stop = true
-                return
+            .padding(.bottom, 20)
+            
+            // Add button
+            Button(action: { showingAddAppointment = true }) {
+                Circle()
+                    .fill(Color.neuPrimary)
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: "plus")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                    )
+                    .shadow(color: Color.neuShadowDark.opacity(0.2), radius: 8, x: 0, y: 4)
             }
-            dates.append(date)
+            .padding(.bottom, 20)
         }
-        return dates
+        .padding(.top)
+        .background(Color.neuBackground.ignoresSafeArea())
+        .sheet(isPresented: $showingAddAppointment) {
+            AddAppointmentView()
+        }
+    }
+    
+    private func deleteAppointment(_ appointment: ChemoSession) {
+        viewContext.delete(appointment)
+        
+        do {
+            try viewContext.save()
+        } catch {
+            print("Error deleting appointment: \(error)")
+        }
+    }
+    
+    private func monthYearString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: date)
+    }
+    
+    private func changeMonth(by value: Int) {
+        if let newDate = calendar.date(byAdding: .month, value: value, to: selectedMonth) {
+            selectedMonth = newDate
+        }
+    }
+    
+    private func daysInMonth() -> [Date?] {
+        let interval = calendar.dateInterval(of: .month, for: selectedMonth)!
+        let firstWeekday = calendar.component(.weekday, from: interval.start)
+        let daysInMonth = calendar.dateComponents([.day], from: interval.start, to: interval.end).day!
+        
+        var days: [Date?] = Array(repeating: nil, count: firstWeekday - 1)
+        
+        for day in 1...daysInMonth {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: interval.start) {
+                days.append(date)
+            }
+        }
+        
+        while days.count % 7 != 0 {
+            days.append(nil)
+        }
+        
+        return days
+    }
+    
+    private func getDateColor(for date: Date) -> Color {
+        if calendar.isDateInToday(date) {
+            return .neuPrimary
+        }
+        if hasAppointment(on: date) {
+            return .neuSecondary
+        }
+        return .neuText
+    }
+    
+    private func hasAppointment(on date: Date) -> Bool {
+        nextTwoAppointments.contains { appointment in
+            guard let appointmentDate = appointment.date else { return false }
+            return calendar.isDate(appointmentDate, inSameDayAs: date)
+        }
     }
 }
 
-struct AddAppointmentSheet: View {
+// AddAppointmentView remains unchanged
+struct AddAppointmentView: View {
+    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) var dismiss
-    let selectedDate: Date
-    let onSave: (Date, String, String?) -> Void
-
-    @State private var date: Date
+    
+    @State private var date = Date()
     @State private var location = ""
-    @State private var notes = ""
-
-    init(selectedDate: Date, onSave: @escaping (Date, String, String?) -> Void) {
-        self.selectedDate = selectedDate
-        self.onSave = onSave
-        _date = State(initialValue: selectedDate)
-    }
-
+    
     var body: some View {
         NavigationView {
             Form {
                 DatePicker("Date", selection: $date)
                 TextField("Location", text: $location)
-                TextField("Optional Notes", text: $notes)
             }
             .navigationTitle("Add Appointment")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        onSave(date, location, notes.isEmpty ? nil : notes)
-                        dismiss()
-                    }
-                    .disabled(location.isEmpty)
-                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        saveAppointment()
+                        dismiss()
+                    }
+                    .disabled(location.isEmpty)
+                }
             }
         }
     }
+    
+    private func saveAppointment() {
+        let newAppointment = ChemoSession(context: viewContext)
+        newAppointment.id = UUID()
+        newAppointment.date = date
+        newAppointment.location = location
+        
+        do {
+            try viewContext.save()
+        } catch {
+            print("Error saving appointment: \(error)")
+        }
+    }
 }
-
-struct Appointment: Identifiable {
-    let id = UUID()
-    let date: Date
-    let location: String
-    let notes: String?
-}
-
