@@ -28,10 +28,10 @@ struct ContentView: View {
                         Text("Symptoms")
                     }
                 
-                SettingsView()
+                AnalyticsView()
                     .tabItem {
-                        Image(systemName: "gearshape")
-                        Text("Settings")
+                        Image(systemName: "chart.xyaxis.line")
+                        Text("Analytics")
                     }
             }
             .tint(Color.neuSecondary)
@@ -40,9 +40,3 @@ struct ContentView: View {
     }
 }
 
-struct SettingsView: View {
-    var body: some View {
-        Text("Settings")
-            .background(Color.neuBackground)
-    }
-}
