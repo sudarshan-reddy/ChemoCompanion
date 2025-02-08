@@ -5,11 +5,13 @@ App to track Chemo treatment and side effects/symptoms
 ## Features
 
 - Calendar to add and track chemotherapy treatment
-[Calender](https://github.com/sudarshan-reddy/ChemoCompanion/blob/master/Screenshots/Appointment.png)
 - Add and track side effects/symptoms
-[Symptoms](https://github.com/sudarshan-reddy/ChemoCompanion/blob/master/Screenshots/Symptoms.png)
 - Add checklists to know what to take for the chemo treatment and what to do after.
-[Home](https://github.com/sudarshan-reddy/ChemoCompanion/blob/master/Screenshots/Home.png)
+
+## Screenshots
+![Home](https://github.com/sudarshan-reddy/ChemoCompanion/blob/master/Screenshots/Home.png)
+![Calendar](https://github.com/sudarshan-reddy/ChemoCompanion/blob/master/Screenshots/Appointment.png)
+![Symptoms](https://github.com/sudarshan-reddy/ChemoCompanion/blob/master/Screenshots/Symptoms.png)
 
 ## TODO:
 
